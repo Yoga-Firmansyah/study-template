@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
-            $table->enum('role', ['admin', 'auditor', 'admin_prodi'])->default('auditor');
+            $table->enum('role', ['admin', 'auditor', 'auditee'])->default('auditor');
             $table->foreignId('prodi_id')->nullable()->constrained('prodis')->nullOnDelete();
             $table->string('password');
             $table->rememberToken();

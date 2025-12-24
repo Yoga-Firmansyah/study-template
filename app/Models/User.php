@@ -84,8 +84,8 @@ class User extends Authenticatable
         return $this->role === 'auditor';
     }
 
-    public function isAdminProdi()
+    public function isAuditee()
     {
-        return $this->role === 'admin_prodi';
+        return $this->role === 'auditee';
     }
 }
