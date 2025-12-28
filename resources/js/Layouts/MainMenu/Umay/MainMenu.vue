@@ -9,9 +9,10 @@ import MainMenuLinks from "@/Sources/mainMenuLinks";
 import {appConf, mainMenuConf} from "@/config";
 import MainMenuItem from "@/Layouts/MainMenu/Umay/MainMenuItem.vue";
 
+const page = usePage()
 const {mainMenuLinks, mainMenuFooterLinks} = MainMenuLinks({
-    roles: usePage().props.user_extra.roles,
-    permissions: usePage().props.user_extra.permissions
+    role: page.props.auth.user.role,
+    permissions: page.props.user_extra.permissions
 });
 
 /*Menu - Variables*/

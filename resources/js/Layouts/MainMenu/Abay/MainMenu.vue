@@ -12,9 +12,10 @@ import UserMenu from "@/Layouts/MainMenu/Abay/UserMenu.vue";
 import {appConf, mainMenuConf} from "@/config";
 import {menuStatus} from "@/Functions/menuTrigger";
 
+const page = usePage()
 const {mainMenuLinks, mainMenuFooterLinks} = MainMenuLinks({
-    roles: usePage().props.user_extra.roles,
-    permissions: usePage().props.user_extra.permissions
+    role: page.props.auth.user.role,
+    permissions: page.props.user_extra.permissions
 });
 
 const activeMainLink = ref([null, null, null]);

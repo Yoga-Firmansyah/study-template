@@ -156,7 +156,8 @@ export default defineComponent({
 </script>
 
 <style scoped>
-* >>> select {
+:deep(select) {
     background-image: none;
 }
 </style>
+

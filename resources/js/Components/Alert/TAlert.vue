@@ -1,188 +1,136 @@
-<template>
-    <transition name="alert">
-        <!--Alert Container-->
-        <div
-            v-if="showAlertBox"
-            class="alert"
-            :class="[
-                `alert-${temporaryDesign}`,
-                !type ? `alert-${temporaryDesign}-${temporaryColor}` :
-                    [{ 'alert-success': type === 'success' },
-                    { 'alert-warning': type === 'warning' },
-                    { 'alert-danger': type === 'error' },
-                    { 'alert-info': type === 'info' }],
-                `radius-${temporaryRadius}`,
-            ]"
-        >
-            <!--Alert Line-->
-            <div v-if="temporaryDesign.includes('line')" class="alert-line" />
+<script setup>
+import { inject, ref, watch, computed, useSlots } from 'vue'
+import { alertConf } from '@/config'
 
-            <!--Alert Icon-->
-            <div v-if="hasSlot('icon')" class="alert-icon">
-                <slot name="icon"></slot>
-            </div>
+const props = defineProps({
+  id: { type: [String, Number], default: () => `alert-${Date.now()}` },
+  title: { type: String, default: null },
+  type: { type: String, default: null }, // success | warning | error | info
+  design: { type: String, default: 'filled' }, // filled | outline | line
+  color: { type: String, default: 'gray' },
+  radius: { type: Number, default: 2 }, // 0–3
+  closeable: { type: Boolean, default: false },
+  timerStatus: { type: Boolean, default: false },
+  timer: { type: Number, default: null },
+})
 
-            <!--Alert Content-->
-            <div class="alert-content">
-                <!--Title-->
-                <span v-if="title" class="alert-title" v-text="title"></span>
-                <!--Content-->
-                <span>
-                    <slot></slot>
-                </span>
-            </div>
+const emit = defineEmits(['destroy'])
+const slots = useSlots()
+const appConf = inject('appConf', {})
 
-            <!--Close Icon-->
-            <icon icon="times" v-if="temporaryCloseable" @click="close" class="alert-close" />
+const show = ref(true)
+const countDown = ref(100)
 
-            <!--Countdown Line-->
-            <div v-if="temporaryTimer" class="alert-countdown">
-                <div
-                    class="alert-countdown-line"
-                    :class="`radius-${temporaryRadius}`"
-                    :style="{ width: countDownCounter + '%' }"
-                ></div>
-            </div>
-        </div>
-    </transition>
-</template>
-<script>
-/* Main Functions */
-import { defineComponent, inject, ref, toRefs, watch, useSlots} from "vue";
+/* 🔹 FINAL CONFIG */
+const finalDesign = props.design ?? alertConf.design ?? appConf.design ?? 'filled'
+const finalColor = props.type
+  ? { success: 'green', warning: 'yellow', error: 'red', info: 'blue' }[props.type]
+  : props.color
 
-/*Sources*/
-import { alertConf } from "@/config";
+/* 🔹 CLASS MAP (STATIC) */
+const alertClass = computed(() => {
+  const base = 'flex gap-3 p-4 text-sm'
+  const radiusMap = ['rounded-none', 'rounded-sm', 'rounded-md', 'rounded-lg']
 
-/*Import FontAwesomeIcon*/
-import { library } from "@fortawesome/fontawesome-svg-core";
-import { faTimes } from "@fortawesome/free-solid-svg-icons";
-library.add(faTimes)
-
-export default defineComponent({
-    name: "TAlert",
-    props: {
-        id: {
-            type: [Number, String, Array, Object, Date, Boolean],
-            default: function () {
-                return "alert-" + Number(new Date());
-            }
-        },
-        closeable: {
-            type: Boolean,
-            default: false
-        },
-        timerStatus: {
-            type: Boolean,
-            default: false,
-        },
-        timer: {
-            type: Number,
-            default: null,
-        },
-        title: {
-            type: String,
-            default: null
-        },
-        type: {
-            type: String,
-            default: null
-        },
-        radius: {
-            type: Number,
-            default: null
-        },
-        design: {
-            type: String,
-            default: "filled"
-        },
-        color: {
-            type: String,
-            default: "light"
-        }
+  const styles = {
+    filled: {
+      yellow: 'bg-yellow-100 text-yellow-800 border border-yellow-300',
+      red: 'bg-red-100 text-red-800 border border-red-300',
+      green: 'bg-green-100 text-green-800 border border-green-300',
+      blue: 'bg-blue-100 text-blue-800 border border-blue-300',
+      gray: 'bg-gray-100 text-gray-800 border border-gray-300',
     },
-    emits: ["destroy"],
+    outline: {
+      yellow: 'border border-yellow-400 text-yellow-600',
+      red: 'border border-red-400 text-red-600',
+      green: 'border border-green-400 text-green-600',
+      blue: 'border border-blue-400 text-blue-600',
+      gray: 'border border-gray-400 text-gray-600',
+    },
+    line: {
+      yellow: 'border-l-4 border-yellow-400 text-yellow-700',
+      red: 'border-l-4 border-red-400 text-red-700',
+      green: 'border-l-4 border-green-400 text-green-700',
+      blue: 'border-l-4 border-blue-400 text-blue-700',
+      gray: 'border-l-4 border-gray-400 text-gray-700',
+    },
+  }
 
-    setup(props, { slots, emit }) {
+  return [
+    base,
+    radiusMap[props.radius] ?? 'rounded-md',
+    styles[finalDesign]?.[finalColor] ?? styles.filled.gray,
+  ]
+})
 
-        /*Definitions*/
-        const { design, color, radius, closeable, timerStatus, timer, id } = toRefs(props);
-        const showAlertBox = ref(true);
-        const appConf = inject('appConf');
+/* 🔹 TIMER */
+watch(
+  () => props.timerStatus,
+  (v) => {
+    if (!v || !props.timer) return
+    const interval = setInterval(() => (countDown.value -= 1), props.timer / 100)
+    setTimeout(() => {
+      clearInterval(interval)
+      close()
+    }, props.timer)
+  }
+)
 
-        /*Temporary Definations*/
-        const temporaryDesign = ref(design.value ? design.value : alertConf.design ? alertConf.design : appConf.value.design)
-        const temporaryColor = ref(color.value ? color.value : alertConf.color ? alertConf.color : appConf.value.color)
-        const temporaryRadius = ref(radius.value ? radius.value : alertConf.radius ? alertConf.radius : appConf.value.radius)
-        const temporaryCloseable = ref(closeable.value ? closeable.value : alertConf.closeable ? alertConf.closeable : appConf.value.closeable)
-        const temporaryTimer = ref(timer.value ? timer.value : alertConf.timer ? alertConf.timer : appConf.value.timer)
+const close = () => {
+  show.value = false
+  emit('destroy', props.id)
+}
 
-        /*Close Function*/
-        const close = () => {
-            showAlertBox.value = false;
-            emit("destroy", id.value);
-        };
-
-        /*Timer*/
-        const timerCounter = ref(0);
-        const countDownCounter = ref(0);
-
-        watch(timerStatus, (newValue, oldValue) => {
-            if (timerStatus.value && !oldValue && newValue > 0) {
-                /*Timer Function*/
-                setTimeout(() => {
-                    showAlertBox.value = false;
-                    emit("destroy", id.value);
-                }, temporaryTimer.value);
-
-                /*Count Down Function*/
-                let countDownFn = setInterval(() => {
-                    if (temporaryTimer.value >= timerCounter.value) {
-                        countDownCounter.value = 100 - (timerCounter.value / temporaryTimer.value) * 100;
-                        timerCounter.value += 4;
-                    } else {
-                        clearInterval(countDownFn);
-                    }
-                }, 1);
-            }
-        })
-
-        /*Slot Check*/
-        const hasSlot = name => !!useSlots()[name];
-
-        return {
-            appConf,
-            alertConf,
-            temporaryDesign,
-            temporaryColor,
-            temporaryRadius,
-            temporaryCloseable,
-            temporaryTimer,
-            showAlertBox,
-            countDownCounter,
-            timerCounter,
-            hasSlot,
-            close
-        };
-    }
-});
+const hasSlot = (name) => !!slots[name]
 </script>
 
+
+<template>
+  <transition name="alert">
+    <div v-if="show" :class="alertClass">
+      <!-- Line decoration -->
+      <div v-if="finalDesign === 'line'" class="w-1 shrink-0"></div>
+
+      <!-- Icon -->
+      <div v-if="hasSlot('icon')" class="shrink-0">
+        <slot name="icon" />
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1">
+        <p v-if="title" class="font-semibold mb-1">{{ title }}</p>
+        <slot />
+      </div>
+
+      <!-- Close -->
+      <button
+        v-if="closeable"
+        @click="close"
+        class="ml-auto text-current opacity-60 hover:opacity-100"
+      >
+        ✕
+      </button>
+
+      <!-- Countdown -->
+      <div
+        v-if="timerStatus"
+        class="absolute bottom-0 left-0 h-1 bg-current opacity-30 transition-all"
+        :style="{ width: countDown + '%' }"
+      />
+    </div>
+  </transition>
+</template>
+
+
 <style scoped>
-/* eslint-disable no-alert */
 .alert-enter-active,
 .alert-leave-active {
-    transition: all ease-in-out 1000ms;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .alert-enter-from,
 .alert-leave-to {
-    opacity: 0;
+  opacity: 0;
+  transform: translateY(-4px);
 }
-
-.alert-enter-to,
-.alert-leave-from {
-    opacity: 1;
-}
-
-/* eslint-disable no-alert */
 </style>

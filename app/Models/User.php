@@ -4,22 +4,28 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Jetstream\HasTeams;
 use Laravel\Sanctum\HasApiTokens;
+/*Spatie Permissions Package*/
+use Spatie\Permission\Traits\HasRoles;
 
 
 class User extends Authenticatable
 {
-    use HasApiTokens, SoftDeletes;
+    use HasApiTokens;
 
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory;
+    use HasProfilePhoto;
+    use HasTeams;
     use Notifiable;
     use TwoFactorAuthenticatable;
+    /*Spatie Permissions Package*/
+    use HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -30,8 +36,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
-        'prodi_id',
         'language',
         'dark_mode',
         'theme',
@@ -49,6 +53,14 @@ class User extends Authenticatable
         'two_factor_secret',
     ];
 
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'profile_photo_url',
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -61,31 +73,5 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
-    }
-
-    public function prodi()
-    {
-        return $this->belongsTo(Prodi::class, 'prodi_id');
-    }
-
-    public function assignments()
-    {
-        return $this->belongsToMany(Assignment::class, 'assignment_auditors', 'auditor_id', 'assignment_id')
-            ->withTimestamps();
-    }
-
-    public function isAdmin()
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isAuditor()
-    {
-        return $this->role === 'auditor';
-    }
-
-    public function isAuditee()
-    {
-        return $this->role === 'auditee';
     }
 }
