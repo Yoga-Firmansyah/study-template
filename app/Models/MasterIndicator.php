@@ -8,7 +8,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class MasterIndicator extends Model
 {
     use SoftDeletes;
-    protected $fillable = ['master_standard_id', 'code', 'requirement', 'is_evidence_required'];
+    protected $fillable = [
+        'master_standard_id',
+        'code',
+        'requirement',
+        'template_path',
+        'is_evidence_required'
+    ];
 
     public function standard()
     {

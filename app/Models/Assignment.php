@@ -8,7 +8,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Assignment extends Model
 {
     use SoftDeletes;
-    protected $fillable = ['name', 'description', 'period_id', 'master_standard_id'];
+    protected $fillable = [
+        'period_id',
+        'master_standard_id',
+        'prodi_id',
+        'auditor_id',
+        'current_stage',
+        'summary_note',
+        'overall_rating'
+    ];
 
     public function period()
     {
@@ -20,13 +28,20 @@ class Assignment extends Model
         return $this->belongsTo(MasterStandard::class, 'master_standard_id')->withTrashed();
     }
 
+
+    public function prodi()
+    {
+        return $this->belongsTo(Prodi::class);
+    }
+
     public function indicators()
     {
         return $this->hasMany(AssignmentIndicator::class);
     }
 
-    public function auditors()
+    public function auditor()
     {
-        return $this->belongsToMany(User::class, 'assignment_auditors', 'assignment_id', 'auditor_id');
+        return $this->belongsTo(User::class, 'auditor_id');
     }
+
 }

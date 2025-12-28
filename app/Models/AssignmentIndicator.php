@@ -8,22 +8,20 @@ class AssignmentIndicator extends Model
 {
     protected $fillable = [
         'assignment_id',
+
         'snapshot_code',
         'snapshot_requirement',
-        'is_evidence_required',
+        'snapshot_template_path',
         'score',
-        'finding',
+        'auditor_note',
+        'evidence_path',
+        'evidence_url',
         'recommendation'
     ];
 
     public function assignment()
     {
         return $this->belongsTo(Assignment::class);
-    }
-
-    public function evidences()
-    {
-        return $this->hasMany(AssessmentEvidence::class);
     }
 
     // Relasi Polimorfik ke History

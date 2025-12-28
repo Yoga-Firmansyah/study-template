@@ -10,13 +10,12 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('assignment_auditors', function (Blueprint $table) {
+        Schema::create('assignment_documents', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('assignment_id')->constrained('assignments')->cascadeOnDelete();
-            $table->foreignId('auditor_id')->constrained('users')->cascadeOnDelete();
-
-            $table->unique(['assignment_id', 'auditor_id']);
+            $table->foreignId('assignment_id')->constrained();
+            $table->enum('type', ['ba_lapangan', 'ba_final', 'laporan_akhir']);
+            $table->string('file_path');
+            $table->foreignId('uploaded_by')->constrained('users');
             $table->timestamps();
         });
     }
@@ -26,6 +25,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('assignment_auditors');
+        Schema::dropIfExists('assignment_documents');
     }
 };

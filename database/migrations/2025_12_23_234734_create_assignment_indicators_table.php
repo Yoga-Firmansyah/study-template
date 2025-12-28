@@ -12,13 +12,20 @@ return new class extends Migration {
     {
         Schema::create('assignment_indicators', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('assignment_id')->constrained()->onDelete('cascade');
-            $table->char('snapshot_code', 6);
+            $table->foreignId('assignment_id')->constrained()->cascadeOnDelete();
+
+            // Data Snapshot (Independen dari Master)
+            $table->char('snapshot_code', 10);
             $table->text('snapshot_requirement');
-            $table->boolean('is_evidence_required');
+            $table->string('snapshot_template_path')->nullable();
+
+            // Hasil Penilaian & Bukti
             $table->integer('score')->nullable();
-            $table->text('finding')->nullable();
+            $table->text('auditor_note')->nullable();
+            $table->string('evidence_path')->nullable(); // File bukti
+            $table->string('evidence_url')->nullable();  // Link bukti (Hybrid)
             $table->text('recommendation')->nullable();
+
             $table->timestamps();
         });
     }

@@ -36,6 +36,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'prodi_id',
         'language',
         'dark_mode',
         'theme',
@@ -73,5 +75,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function prodi()
+    {
+        return $this->belongsTo(Prodi::class);
     }
 }

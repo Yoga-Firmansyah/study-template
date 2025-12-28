@@ -12,12 +12,16 @@ return new class extends Migration {
     {
         Schema::create('assignments', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->comment('Nama penugasan');
-            $table->string('description')->nullable()->comment('Deskripsi penugasan');
-            $table->foreignId('period_id')->constrained()->restrictOnDelete();
-            $table->foreignId('master_standard_id')->nullable()->constrained('master_standards')->nullOnDelete();
+            $table->foreignId('period_id')->constrained();
+            $table->foreignId('prodi_id')->constrained();
+            $table->foreignId('auditor_id')->constrained('users'); // Single Auditor
+            $table->foreignId('master_standard_id')->constrained();
+
+            $table->string('current_stage')->default('audit_dokumen');
+            $table->text('summary_note')->nullable(); // Catatan ringkasan tahap aktif
+            $table->string('overall_rating')->nullable(); // Penilaian global tahap aktif
+
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
