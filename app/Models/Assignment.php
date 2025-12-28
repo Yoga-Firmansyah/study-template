@@ -34,14 +34,20 @@ class Assignment extends Model
         return $this->belongsTo(Prodi::class);
     }
 
+    public function auditor()
+    {
+        return $this->belongsTo(User::class, 'auditor_id');
+    }
+
     public function indicators()
     {
         return $this->hasMany(AssignmentIndicator::class);
     }
 
-    public function auditor()
+    public function documents()
     {
-        return $this->belongsTo(User::class, 'auditor_id');
+        return $this->hasMany(AssignmentDocument::class);
     }
+
 
 }

@@ -36,11 +36,6 @@ class Period extends Model
         'rtm_rtl_end' => 'date',
     ];
 
-    public function prodi()
-    {
-        return $this->belongsTo(Prodi::class);
-    }
-
     public function assignments()
     {
         return $this->hasMany(Assignment::class);

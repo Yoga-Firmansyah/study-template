@@ -81,4 +81,22 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Prodi::class);
     }
+
+    public function audits()
+    {
+        return $this->hasMany(Assignment::class, 'auditor_id');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+    public function isAuditor(): bool
+    {
+        return $this->role === 'auditor';
+    }
+    public function isAuditee(): bool
+    {
+        return $this->role === 'auditee';
+    }
 }
