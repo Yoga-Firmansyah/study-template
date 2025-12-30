@@ -87,6 +87,11 @@ class User extends Authenticatable
         return $this->hasMany(Assignment::class, 'auditor_id');
     }
 
+    public function auditHistories()
+    {
+        return $this->hasMany(AuditHistory::class, 'user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
@@ -98,5 +103,15 @@ class User extends Authenticatable
     public function isAuditee(): bool
     {
         return $this->role === 'auditee';
+    }
+
+    // Scope untuk pencarian di tabel
+    public function scopeTableSearch($query, $search)
+    {
+        if (!$search)
+            return $query;
+        return $query->where('name', 'like', "%{$search}%")
+            ->orWhere('email', 'like', "%{$search}%")
+            ->orWhere('role', 'like', "%{$search}%");
     }
 }

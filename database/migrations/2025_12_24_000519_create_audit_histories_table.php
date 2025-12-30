@@ -10,13 +10,14 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('indicator_histories', function (Blueprint $table) {
+        Schema::create('audit_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->comment('Siapa yang melakukan perubahan');
 
             // Polimorfik: Bisa merujuk ke MasterIndicator atau AssignmentIndicator
             $table->string('historable_type');
             $table->unsignedBigInteger('historable_id');
+            $table->string('stage')->comment('Tahap saat perubahan terjadi: doc_audit, field_audit, dll');
 
             $table->json('old_values')->nullable()->comment('Data sebelum diubah');
             $table->json('new_values')->nullable()->comment('Data sesudah diubah');
@@ -35,6 +36,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('indicator_histories');
+        Schema::dropIfExists('audit_histories');
     }
 };

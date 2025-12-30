@@ -1,55 +1,142 @@
 <?php
+
 namespace App\Services;
 
-use App\Models\Assignment;
-use App\Models\MasterIndicator;
-use App\Models\AssignmentIndicator;
-use Illuminate\Support\Facades\DB;
+use App\Models\{Assignment, MasterIndicator, AssignmentIndicator, AuditHistory};
+use Carbon\Carbon;
+use Illuminate\Support\Facades\{DB, Storage};
 
 class AssignmentService
 {
     /**
-     * Menyimpan penugasan baru dan melakukan snapshot indikator.
+     * Inisialisasi Penugasan & Snapshot Indikator
      */
-    public function createAssignment(array $data)
+    public function createAssignment(array $data): Assignment
     {
         return DB::transaction(function () use ($data) {
-            // 1. Simpan data utama penugasan
-            $assignment = Assignment::create([
-                'name' => $data['name'],
-                'description' => $data['description'] ?? null,
-                'period_id' => $data['period_id'],
-                'master_standard_id' => $data['master_standard_id'],
-            ]);
+            $assignment = Assignment::create($data);
 
-            // 2. Sinkronisasi Auditor (Many-to-Many)
-            // Mengisi tabel assignment_auditors
-            $assignment->auditors()->sync($data['auditor_ids']);
+            $masterIndicators = MasterIndicator::where('master_standard_id', $data['master_standard_id'])->get();
 
-            // 3. PROSES SNAPSHOT: Fotokopi Indikator Master ke Pelaksanaan
-            $this->performSnapshot($assignment);
+            foreach ($masterIndicators as $master) {
+                AssignmentIndicator::create([
+                    'assignment_id' => $assignment->id,
+                    'snapshot_code' => $master->code,
+                    'snapshot_requirement' => $master->requirement,
+                    'snapshot_template_path' => $master->template_path,
+                ]);
+            }
 
             return $assignment;
         });
     }
 
     /**
-     * Logika menyalin data dari Master ke tabel Assignment Indicators.
+     * Versi Sempurna: Satu metode untuk semua update (Data & File)
+     * Mengotomatisasi Smart File Versioning & History
      */
-    protected function performSnapshot(Assignment $assignment)
+    public function updateIndicator(AssignmentIndicator $indicator, array $newData, int $userId): bool
     {
-        // Ambil semua butir indikator dari Standar Master yang dipilih
-        $masterIndicators = MasterIndicator::where('master_standard_id', $assignment->master_standard_id)->get();
+        $assignment = $indicator->assignment;
+        $oldData = $indicator->only(['score', 'auditor_note', 'evidence_path', 'evidence_url', 'recommendation']);
 
-        foreach ($masterIndicators as $master) {
-            // Salin data ke tabel snapshot agar independen dari Master
-            AssignmentIndicator::create([
-                'assignment_id' => $assignment->id,
-                'snapshot_code' => $master->code,
-                'snapshot_requirement' => $master->requirement,
-                'is_evidence_required' => $master->is_evidence_required,
-                'score' => null, // Penilaian awal kosong
-            ]);
+        // 1. Ambil history terakhir di tahap yang sama
+        $lastHistoryAtThisStage = $indicator->histories()
+            ->where('stage', $assignment->current_stage)
+            ->exists();
+
+        // 2. Logika History: Catat jika sudah berganti siklus tahap
+        if (!$lastHistoryAtThisStage) {
+            $this->recordHistory($indicator, $oldData, $newData, $assignment->current_stage, $userId);
         }
+
+        // 3. Logika Smart File: Hapus fisik jika masih di tahap yang sama
+        if (isset($newData['evidence_path']) && $indicator->evidence_path && $lastHistoryAtThisStage) {
+            Storage::delete($indicator->evidence_path);
+        }
+
+        return $indicator->update($newData);
+    }
+
+    /**
+     * Sinkronisasi Tahap AMI (Middleware & Scheduler)
+     */
+    public function syncCurrentStage(Assignment $assignment): void
+    {
+        $now = now()->startOfDay();
+        $period = $assignment->period;
+        $oldStage = $assignment->current_stage;
+        $newStage = $this->calculateStage($period, $now);
+
+        if ($newStage !== $oldStage) {
+            DB::transaction(function () use ($assignment, $oldStage, $newStage) {
+                $assignment->update([
+                    'current_stage' => $newStage,
+                    'completed_at' => ($newStage === 'finished') ? now() : $assignment->completed_at
+                ]);
+
+                $this->recordHistory($assignment, ['stage' => $oldStage], ['stage' => $newStage], $newStage, 0);
+            });
+        }
+    }
+
+    private function calculateStage($period, Carbon $now): string
+    {
+        if ($now->between($period->doc_audit_start, $period->doc_audit_end))
+            return 'doc_audit';
+        if ($now->between($period->field_audit_start, $period->field_audit_end))
+            return 'field_audit';
+        if ($now->between($period->finding_start, $period->finding_end))
+            return 'finding';
+        if ($now->between($period->reporting_start, $period->reporting_end))
+            return 'reporting';
+        if ($now->between($period->rtm_rtl_start, $period->rtm_rtl_end))
+            return 'rtm_rtl';
+        return $now->gt($period->rtm_rtl_end) ? 'finished' : 'doc_audit';
+    }
+
+    private function recordHistory($model, $old, $new, $stage, $userId): AuditHistory
+    {
+        return AuditHistory::create([
+            'user_id' => $userId,
+            'historable_type' => get_class($model),
+            'historable_id' => $model->id,
+            'stage' => $stage,
+            'old_values' => $old,
+            'new_values' => $new,
+            'action' => 'update_audit_trail',
+        ]);
+    }
+
+    public function uploadAssignmentDocument(Assignment $assignment, array $data, $file, $userId): AssignmentDocument
+    {
+        return DB::transaction(function () use ($assignment, $data, $file, $userId) {
+            // 1. Simpan File Fisik
+            $path = $file->store("documents/{$assignment->id}");
+
+            // 2. Buat Record Dokumen
+            $document = AssignmentDocument::create([
+                'assignment_id' => $assignment->id,
+                'type' => $data['type'], // ba_lapangan, ba_final, laporan_akhir
+                'file_path' => $path,
+                'uploaded_by' => $userId,
+            ]);
+
+            // 3. Catat ke AuditHistory sebagai Milestone Legal
+            AuditHistory::create([
+                'user_id' => $userId,
+                'historable_type' => Assignment::class,
+                'historable_id' => $assignment->id,
+                'stage' => $assignment->current_stage,
+                'action' => 'upload_document',
+                'new_values' => [
+                    'document_type' => $data['type'],
+                    'file_path' => $path
+                ],
+                'reason' => "Unggah dokumen resmi: " . strtoupper(str_replace('_', ' ', $data['type']))
+            ]);
+
+            return $document;
+        });
     }
 }

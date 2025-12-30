@@ -27,6 +27,6 @@ class AssignmentIndicator extends Model
     // Relasi Polimorfik ke History
     public function histories()
     {
-        return $this->morphMany(IndicatorHistory::class, 'historable');
+        return $this->morphMany(AuditHistory::class, 'historable');
     }
 }

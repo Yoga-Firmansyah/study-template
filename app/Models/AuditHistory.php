@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class IndicatorHistory extends Model
+class AuditHistory extends Model
 {
     protected $fillable = [
         'user_id',
         'historable_type',
         'historable_id',
+        'stage',
         'old_values',
         'new_values',
         'action',

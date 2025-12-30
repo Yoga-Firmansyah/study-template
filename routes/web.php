@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AssignmentController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -9,7 +10,7 @@ use Spatie\Permission\Models\Role;
 
 /**
  * You can register your routes here.
-**/
+ **/
 include base_path('routes/web_modules/index.php');
 
 /* Change Lang */
@@ -65,7 +66,7 @@ Route::middleware([
 
         /*Resource Routes*/
         Route::resources([
-            'settings-user'=> \App\Http\Controllers\Settings\UserController::class,
+            'settings-user' => \App\Http\Controllers\Settings\UserController::class,
             'settings-role' => \App\Http\Controllers\Settings\RoleController::class,
             'settings-permission' => \App\Http\Controllers\Settings\PermissionController::class
         ]);
@@ -90,7 +91,8 @@ Route::middleware([
     })->name('register-app');
     Route::get('register-app-demo', function () {
         return Inertia::render('Samples/Examples/Auth/Register');
-    })->name('register-app-demo');;
+    })->name('register-app-demo');
+    ;
     Route::get('forgot-password-app', function () {
         return Inertia::render('Samples/Examples/ForgotPassword');
     })->name('forgot-password-app');
@@ -225,4 +227,17 @@ Route::middleware([
 });
 
 
+//Aplikasi AMI
+Route::middleware(['auth', 'sync.ami'])->group(function () {
+    // Tampilan Detail Audit
+    Route::get('/assignments/{assignment}', [AssignmentController::class, 'show'])->name('assignments.show');
 
+    // Update Indikator (Skor & Bukti)
+    Route::post('/indicators/{indicator}', [AssignmentController::class, 'updateIndicator'])->name('indicators.update');
+
+    // Upload Dokumen Berita Acara
+    Route::post('/assignments/{assignment}/documents', [AssignmentController::class, 'uploadDocument'])->name('assignments.documents.upload');
+});
+
+// Rute khusus Admin untuk membuat penugasan
+Route::middleware(['auth', 'can:admin'])->post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');

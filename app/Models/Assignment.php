@@ -15,7 +15,12 @@ class Assignment extends Model
         'auditor_id',
         'current_stage',
         'summary_note',
-        'overall_rating'
+        'overall_rating',
+        'completed_at'
+    ];
+
+    protected $casts = [
+        'completed_at' => 'datetime',
     ];
 
     public function period()
@@ -27,7 +32,6 @@ class Assignment extends Model
     {
         return $this->belongsTo(MasterStandard::class, 'master_standard_id')->withTrashed();
     }
-
 
     public function prodi()
     {
@@ -49,5 +53,8 @@ class Assignment extends Model
         return $this->hasMany(AssignmentDocument::class);
     }
 
-
+    public function histories()
+    {
+        return $this->morphMany(AuditHistory::class, 'historable');
+    }
 }

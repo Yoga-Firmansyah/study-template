@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AssignmentDocument;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Session;
+
+class AssignmentDocumentController extends Controller
+{
+    /**
+     * Mengunduh dokumen BA atau Laporan Akhir
+     */
+    public function download(AssignmentDocument $document)
+    {
+        // Pastikan file fisik ada
+        if (!Storage::exists($document->file_path)) {
+            return back()->withErrors(['message' => 'File tidak ditemukan di server.']);
+        }
+
+        return Storage::download(
+            $document->file_path,
+            $document->type . '-' . $document->assignment_id . '.pdf'
+        );
+    }
+
+    /**
+     * Menghapus dokumen (Hanya jika tahap audit belum berpindah)
+     */
+    public function destroy(AssignmentDocument $document)
+    {
+        $assignment = $document->assignment;
+
+        // Proteksi: Dokumen tidak boleh dihapus jika tahap audit sudah lewat
+        // Contoh: BA Lapangan tidak boleh dihapus jika sekarang sudah tahap Reporting
+        if ($document->type === 'ba_lapangan' && !in_array($assignment->current_stage, ['field_audit', 'finding'])) {
+            return back()->withErrors(['message' => 'Dokumen sudah dikunci dan tidak dapat dihapus.']);
+        }
+
+        Storage::delete($document->file_path);
+        $document->delete();
+
+        Session::flash('toastr', [
+            'type' => 'gradient-red-to-pink',
+            'content' => 'Dokumen berhasil dihapus.'
+        ]);
+
+        return back();
+    }
+}

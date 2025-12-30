@@ -15,20 +15,19 @@ return new class extends Migration {
             $table->string('name'); // Contoh: AMI 2026 Ganjil
 
             // 6 Tahapan dengan rentang waktu DateTime
-            $table->date('doc_audit_start');
-            $table->date('doc_audit_end');
-            $table->date('field_audit_start');
-            $table->date('field_audit_end');
-            $table->date('finding_start');
-            $table->date('finding_end');
-            $table->date('reporting_start');
-            $table->date('reporting_end');
-            $table->date('rtm_rtl_start');
-            $table->date('rtm_rtl_end');
+            $table->dateTime('doc_audit_start');
+            $table->dateTime('doc_audit_end');
+            $table->dateTime('field_audit_start');
+            $table->dateTime('field_audit_end');
+            $table->dateTime('finding_start');
+            $table->dateTime('finding_end');
+            $table->dateTime('reporting_start');
+            $table->dateTime('reporting_end');
+            $table->dateTime('rtm_rtl_start');
+            $table->dateTime('rtm_rtl_end');
 
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
