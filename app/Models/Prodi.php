@@ -19,4 +19,9 @@ class Prodi extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function histories()
+    {
+        return $this->morphMany(AuditHistory::class, 'historable');
+    }
 }

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\{MasterStandard, MasterIndicator, AuditHistory};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Storage, Session, DB};
@@ -10,11 +11,24 @@ use Inertia\Inertia;
 
 class MasterIndicatorController extends Controller
 {
-    public function index(MasterStandard $standard)
+    public function index(Request $request, MasterStandard $standard)
     {
+        $filters = $request->only(['search', 'sort_field', 'direction']);
+        $sortField = $request->input('sort_field', 'code');
+        $sortDirection = $request->input('direction', 'asc');
+
+        $indicators = $standard->indicators()
+            ->when($request->input('search'), function ($q, $search) {
+                $q->where('requirement', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%");
+            })
+            ->orderBy($sortField, $sortDirection)
+            ->get(); // Biasanya indikator per standar tidak terlalu banyak, bisa tetap get()
+
         return Inertia::render('Master/Indicators/Index', [
             'standard' => $standard,
-            'indicators' => $standard->indicators()->latest()->get()
+            'indicators' => $indicators,
+            'filters' => $filters
         ]);
     }
 
@@ -98,5 +112,13 @@ class MasterIndicatorController extends Controller
         $indicator->delete();
         Session::flash('toastr', ['type' => 'gradient-red-to-pink', 'content' => 'Indikator berhasil dihapus.']);
         return back();
+    }
+
+    /**
+     * Endpoint History Master Indicator (AJAX)
+     */
+    public function history(MasterIndicator $indicator)
+    {
+        return response()->json($indicator->histories()->with('user:id,name')->latest()->get());
     }
 }
