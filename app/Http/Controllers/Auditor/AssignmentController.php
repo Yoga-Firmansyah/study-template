@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Auditor;
 
+use App\Enums\AssignmentDocType;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Services\AssignmentService; // Tambahkan ini
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Session, Gate};
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class AssignmentController extends Controller
@@ -73,15 +75,23 @@ class AssignmentController extends Controller
         Gate::authorize('update', $assignment);
 
         $request->validate([
-            'type' => 'required|in:ba_lapangan,ba_final,laporan_akhir',
+            'type' => ['required', Rule::enum(AssignmentDocType::class)],
             'file' => 'required|file|mimes:pdf|max:5120',
         ]);
 
         $stage = $assignment->current_stage;
 
         // Validasi Tahap (Stage-Gate) agar auditor tidak salah unggah
-        if ($request->type === 'ba_lapangan' && !in_array($stage, ['field_audit', 'finding'])) {
-            return back()->withErrors(['message' => 'BA Lapangan hanya diunggah pada tahap Lapangan/Temuan.']);
+        if ($request->type === AssignmentDocType::FIELD_REPORT->value && !$stage->fieldReport()) {
+            return back()->withErrors(['message' => 'BA Lapangan hanya diunggah pada tahap Lapangan.']);
+        }
+
+        if ($request->type === AssignmentDocType::FINAL_REPORT->value && !$stage->finalReport()) {
+            return back()->withErrors(['message' => 'BA Final hanya diunggah pada tahap Pelaporan.']);
+        }
+
+        if ($request->type === AssignmentDocType::END_REPORT->value && !$stage->endReport()) {
+            return back()->withErrors(['message' => 'Laporan Akhir hanya diunggah pada tahap RTM/RTL atau Selesai.']);
         }
 
         $this->assignmentService->uploadAssignmentDocument(

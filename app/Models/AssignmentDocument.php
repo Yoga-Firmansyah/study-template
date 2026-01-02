@@ -28,9 +28,11 @@ class AssignmentDocument extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    public function isLockedForDeletion(): bool
+    public function isLockedForReportChange(): bool
     {
         $assignment = $this->assignment;
+        if (!$assignment)
+            return true;
         $stage = $assignment->current_stage;
 
         return match ($this->type) {

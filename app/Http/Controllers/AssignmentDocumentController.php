@@ -30,7 +30,7 @@ class AssignmentDocumentController extends Controller
      */
     public function destroy(AssignmentDocument $document)
     {
-        if ($document->isLockedForDeletion()) {
+        if ($document->isLockedForReportChange()) {
             return back()->withErrors([
                 'message' => 'Dokumen sudah dikunci dan tidak dapat dihapus.',
             ]);

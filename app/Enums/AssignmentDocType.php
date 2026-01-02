@@ -11,9 +11,9 @@ enum AssignmentDocType: string
     public function label(): string
     {
         return match ($this) {
-            self::FIELD_REPORT => 'Berita Acara Lapangan',
-            self::FINAL_REPORT => 'Berita Acara Final',
-            self::END_REPORT => 'Laporan Akhir',
+            self::FIELD_REPORT => 'Berita Acara Audit Lapangan',
+            self::FINAL_REPORT => 'Berita Acara Audit Final',
+            self::END_REPORT => 'Laporan Akhir Audit',
         };
     }
 }
