@@ -17,7 +17,7 @@ return new class extends Migration {
             $table->foreignId('auditor_id')->constrained('users'); // Single Auditor
             $table->foreignId('master_standard_id')->constrained();
 
-            $table->enum('current_stage', ['doc_audit', 'field_audit', 'finding', 'reporting', 'rtm_rtl', 'finished'])
+            $table->string('current_stage', 25)
                 ->default('doc_audit')
                 ->index();
             $table->text('summary_note')->nullable(); // Catatan ringkasan tahap aktif

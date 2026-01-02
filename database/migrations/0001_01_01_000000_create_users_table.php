@@ -17,7 +17,7 @@ return new class extends Migration {
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->foreignId('prodi_id')->nullable()->constrained();
-            $table->enum('role', ['admin', 'auditor', 'auditee'])->default('auditee')->index();
+            $table->string('role', 25)->default('auditee')->index();
             $table->rememberToken();
             $table->foreignId('current_team_id')->nullable();
             $table->string('profile_photo_path', 2048)->nullable();

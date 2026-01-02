@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AuditStage;
 use App\Models\{Assignment, AssignmentDocument, MasterIndicator, AssignmentIndicator, AuditHistory};
 use Carbon\Carbon;
 use Illuminate\Support\Facades\{DB, Storage};
@@ -89,19 +90,19 @@ class AssignmentService
         }
     }
 
-    private function calculateStage($period, Carbon $now): string
+    private function calculateStage($period, Carbon $now): AuditStage
     {
         if ($now->between($period->doc_audit_start, $period->doc_audit_end))
-            return 'doc_audit';
+            return AuditStage::DOC_AUDIT;
         if ($now->between($period->field_audit_start, $period->field_audit_end))
-            return 'field_audit';
+            return AuditStage::FIELD_AUDIT;
         if ($now->between($period->finding_start, $period->finding_end))
-            return 'finding';
+            return AuditStage::FINDING;
         if ($now->between($period->reporting_start, $period->reporting_end))
-            return 'reporting';
+            return AuditStage::REPORTING;
         if ($now->between($period->rtm_rtl_start, $period->rtm_rtl_end))
-            return 'rtm_rtl';
-        return $now->gt($period->rtm_rtl_end) ? 'finished' : 'doc_audit';
+            return AuditStage::RTM_RTL;
+        return $now->gt($period->rtm_rtl_end) ? AuditStage::FINISHED : AuditStage::DOC_AUDIT;
     }
 
     private function recordHistory($model, $old, $new, $stage, $userId): AuditHistory

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AssignmentDocType;
 use App\Models\AssignmentDocument;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Session;
@@ -29,12 +30,10 @@ class AssignmentDocumentController extends Controller
      */
     public function destroy(AssignmentDocument $document)
     {
-        $assignment = $document->assignment;
-
-        // Proteksi: Dokumen tidak boleh dihapus jika tahap audit sudah lewat
-        // Contoh: BA Lapangan tidak boleh dihapus jika sekarang sudah tahap Reporting
-        if ($document->type === 'ba_lapangan' && !in_array($assignment->current_stage, ['field_audit', 'finding'])) {
-            return back()->withErrors(['message' => 'Dokumen sudah dikunci dan tidak dapat dihapus.']);
+        if ($document->isLockedForDeletion()) {
+            return back()->withErrors([
+                'message' => 'Dokumen sudah dikunci dan tidak dapat dihapus.',
+            ]);
         }
 
         Storage::delete($document->file_path);
@@ -42,9 +41,10 @@ class AssignmentDocumentController extends Controller
 
         Session::flash('toastr', [
             'type' => 'gradient-red-to-pink',
-            'content' => 'Dokumen berhasil dihapus.'
+            'content' => 'Dokumen berhasil dihapus.',
         ]);
 
         return back();
     }
+
 }

@@ -22,6 +22,7 @@ class Assignment extends Model
     ];
 
     protected $casts = [
+        'current_stage' => AuditStage::class,
         'completed_at' => 'datetime',
     ];
 
@@ -69,6 +70,14 @@ class Assignment extends Model
                 ->orWhereHas('period', fn($per) => $per->where('name', 'like', "%{$search}%"))
                 ->orWhere('current_stage', 'like', "%{$search}%");
         });
+    }
+
+    /**
+     * Scope untuk filter prodi (Auditee)
+     */
+    public function scopeForProdi($query, $prodiId)
+    {
+        return $query->where('prodi_id', $prodiId);
     }
 
 }

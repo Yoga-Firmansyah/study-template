@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use App\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -74,6 +75,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'role' => UserRole::class,
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
@@ -96,15 +98,33 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === UserRole::ADMIN;
     }
     public function isAuditor(): bool
     {
-        return $this->role === 'auditor';
+        return $this->role === UserRole::AUDITOR;
     }
     public function isAuditee(): bool
     {
-        return $this->role === 'auditee';
+        return $this->role === UserRole::AUDITEE;
+    }
+
+    /**
+     * Mendapatkan semua penugasan (audit) yang terkait dengan user ini
+     * Jika Auditor -> Audit yang dia nilai
+     * Jika Auditee -> Audit milik Prodinya
+     */
+    public function relatedAssignments()
+    {
+        if ($this->isAuditor()) {
+            return Assignment::where('auditor_id', $this->id);
+        }
+
+        if ($this->isAuditee()) {
+            return Assignment::where('prodi_id', $this->prodi_id);
+        }
+
+        return Assignment::query(); // Admin bisa melihat semua
     }
 
 }

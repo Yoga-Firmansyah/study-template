@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('master_standard_id')->constrained()->cascadeOnDelete();
             $table->char('code', 10)->index();
-            $table->text('requirement')->comment('Deskripsi persyaratan')->index();
+            $table->text('requirement')->comment('Deskripsi persyaratan');
             $table->string('template_path')->nullable()->comment('Template acuan dari Admin');
             $table->boolean('is_evidence_required')->default(true)->comment('Apakah bukti diperlukan?');
             $table->timestamps();

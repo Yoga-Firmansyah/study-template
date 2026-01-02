@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Prodi;
@@ -34,7 +35,10 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|in:admin,auditor,auditee',
+            'role' => [
+                'required',
+                Rule::enum(UserRole::class),
+            ],
             'prodi_id' => 'nullable|exists:prodis,id',
         ]);
 
@@ -52,7 +56,10 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8|confirmed',
-            'role' => 'required|in:admin,auditor,auditee',
+            'role' => [
+                'required',
+                Rule::enum(UserRole::class),
+            ],
             'prodi_id' => 'nullable|exists:prodis,id',
         ]);
 

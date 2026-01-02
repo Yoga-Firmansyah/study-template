@@ -12,8 +12,8 @@ return new class extends Migration {
     {
         Schema::create('assignment_documents', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('assignment_id')->constrained();
-            $table->enum('type', ['ba_lapangan', 'ba_final', 'laporan_akhir']);
+            $table->foreignId('assignment_id')->constrained()->cascadeOnDelete();
+            $table->string('type', 25)->index();
             $table->string('file_path');
             $table->foreignId('uploaded_by')->constrained('users');
             $table->timestamps();

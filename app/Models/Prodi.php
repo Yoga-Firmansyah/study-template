@@ -22,4 +22,9 @@ class Prodi extends Model
         return $this->hasMany(User::class);
     }
 
+    public function assignments()
+    {
+        return $this->hasMany(Assignment::class);
+    }
+
 }
