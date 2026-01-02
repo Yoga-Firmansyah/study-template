@@ -90,7 +90,7 @@ class AssignmentController extends Controller
         // Memuat indikator dengan filter search jika ada
         $indicators = $assignment->indicators()
             ->search($filters['search'] ?? null)
-            ->sort($filters['sort_field'] ?? 'id', $filters['direction'] ?? 'asc')
+            ->sort($filters['sort_field'] ?? 'snapshot_code', $filters['direction'] ?? 'asc')
             ->paginate($perPage)
             ->withQueryString();
 

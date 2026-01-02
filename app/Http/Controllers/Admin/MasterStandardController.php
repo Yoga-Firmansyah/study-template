@@ -31,7 +31,7 @@ class MasterStandardController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:10|unique:master_standards,code',
+            'code' => 'required|string|max:6|unique:master_standards,code',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
@@ -54,7 +54,7 @@ class MasterStandardController extends Controller
     public function update(Request $request, MasterStandard $standard)
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'max:10', Rule::unique('master_standards')->ignore($standard->id)],
+            'code' => ['required', 'string', 'max:6', Rule::unique('master_standards')->ignore($standard->id)],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);

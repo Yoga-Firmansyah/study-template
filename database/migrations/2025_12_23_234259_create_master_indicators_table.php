@@ -13,8 +13,8 @@ return new class extends Migration {
         Schema::create('master_indicators', function (Blueprint $table) {
             $table->id();
             $table->foreignId('master_standard_id')->constrained()->cascadeOnDelete();
-            $table->char('code', 10);
-            $table->text('requirement')->comment('Deskripsi persyaratan');
+            $table->char('code', 10)->index();
+            $table->text('requirement')->comment('Deskripsi persyaratan')->index();
             $table->string('template_path')->nullable()->comment('Template acuan dari Admin');
             $table->boolean('is_evidence_required')->default(true)->comment('Apakah bukti diperlukan?');
             $table->timestamps();

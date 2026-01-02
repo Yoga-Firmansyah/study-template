@@ -12,8 +12,8 @@ return new class extends Migration {
     {
         Schema::create('master_standards', function (Blueprint $table) {
             $table->id();
-            $table->char('code', 6)->unique()->comment('Kode standar');
-            $table->string('name')->comment('Nama standar');
+            $table->char('code', 6)->unique()->comment('Kode standar')->index();
+            $table->string('name')->index()->comment('Nama standar');
             $table->text('description')->nullable()->comment('Deskripsi standar');
             $table->softDeletes();
             $table->timestamps();

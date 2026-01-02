@@ -28,6 +28,8 @@ return new class extends Migration {
 
             // Index untuk mempercepat pencarian history
             $table->index(['historable_type', 'historable_id']);
+            $table->index('created_at');
+            $table->index('stage');
         });
     }
 

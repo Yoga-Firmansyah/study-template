@@ -159,4 +159,18 @@ class AssignmentService
             Storage::deleteDirectory($path); // Menghapus semua template & dokumen terkait
         }
     }
+
+    public function finalizeAssignment(Assignment $assignment, array $data, int $userId): void
+    {
+        DB::transaction(function () use ($assignment, $data, $userId) {
+            $assignment->update([
+                'summary_note' => $data['summary_note'],
+                'overall_rating' => $data['overall_rating'],
+                'completed_at' => now(),
+                'current_stage' => 'finished' // Otomatis set ke selesai
+            ]);
+
+            $this->recordHistory($assignment, [], $data, $assignment->current_stage, $userId);
+        });
+    }
 }

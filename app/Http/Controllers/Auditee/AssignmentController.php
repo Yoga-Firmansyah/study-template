@@ -12,39 +12,50 @@ class AssignmentController extends Controller
 {
     public function index(Request $request)
     {
-        $search = $request->input('search');
+        // 1. Ambil input filter, sort, & per_page
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
+
         $assignments = Assignment::with(['prodi', 'period', 'standard'])
             ->where('prodi_id', auth()->user()->prodi_id) // Filter prodi milik user
-            ->when($search, function ($q) use ($search) {
-                // Mencari berdasarkan nama periode atau kode standar
-                $q->whereHas('period', fn($p) => $p->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('standard', fn($s) => $s->where('code', 'like', "%{$search}%"));
-            })
-            ->latest()
-            ->paginate(10)
-            ->withQueryString(); // Agar pencarian tidak hilang saat pindah halaman
+            ->search($request->search) // Menggunakan scopeSearch kustom di Model
+            ->sort($request->sort_field, $request->direction) // Menggunakan scope dari Trait
+            ->paginate($perPage)
+            ->withQueryString();
 
         return inertia('Auditee/Assignments/Index', [
             'assignments' => $assignments,
-            'filters' => $request->only(['search'])
+            'filters' => $filters
         ]);
     }
 
-    /**
-     * FITUR TAMBAHAN: Menampilkan detail tugas prodi
-     */
-    public function show(Assignment $assignment)
+    public function show(Request $request, Assignment $assignment)
     {
         // Otorisasi: Pastikan auditee hanya bisa melihat assignment milik prodinya
         if ($assignment->prodi_id !== auth()->user()->prodi_id) {
             abort(403, 'Anda tidak memiliki akses ke data prodi lain.');
         }
 
-        $assignment->load(['period', 'standard', 'auditor', 'indicators', 'documents']);
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 25);
+
+        $assignment->load(['period', 'standard', 'auditor', 'documents']);
+
+        // Paginasi Indikator agar seragam dengan tampilan Auditor
+        $indicators = $assignment->indicators()
+            ->when($request->search, function ($q, $search) {
+                $q->where('snapshot_code', 'like', "%{$search}%")
+                    ->orWhere('snapshot_requirement', 'like', "%{$search}%");
+            })
+            ->sort($request->sort_field ?? 'snapshot_code', $request->direction ?? 'asc')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return inertia('Auditee/Assignments/Show', [
             'assignment' => $assignment,
-            'currentStage' => $assignment->current_stage // Mengontrol visibilitas tombol upload di UI
+            'indicators' => $indicators,
+            'filters' => $filters,
+            'currentStage' => $assignment->current_stage
         ]);
     }
 }

@@ -12,7 +12,7 @@ return new class extends Migration {
     {
         Schema::create('prodis', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->index();
             $table->string('code')->unique();
             $table->timestamps();
             $table->softDeletes();

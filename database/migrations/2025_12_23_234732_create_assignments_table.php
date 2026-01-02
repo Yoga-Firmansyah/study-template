@@ -17,12 +17,16 @@ return new class extends Migration {
             $table->foreignId('auditor_id')->constrained('users'); // Single Auditor
             $table->foreignId('master_standard_id')->constrained();
 
-            $table->enum('current_stage', ['doc_audit', 'field_audit', 'finding', 'reporting', 'rtm_rtl', 'finished'])->default('doc_audit');
+            $table->enum('current_stage', ['doc_audit', 'field_audit', 'finding', 'reporting', 'rtm_rtl', 'finished'])
+                ->default('doc_audit')
+                ->index();
             $table->text('summary_note')->nullable(); // Catatan ringkasan tahap aktif
             $table->string('overall_rating')->nullable(); // Penilaian global tahap aktif
             $table->dateTime('completed_at')->nullable(); // Waktu selesai jika finished
 
             $table->timestamps();
+            $table->softDeletes();
+            $table->index(['period_id', 'prodi_id']);
         });
     }
 

@@ -21,45 +21,47 @@ class AssignmentController extends Controller
 
     public function index(Request $request)
     {
-        $search = $request->input('search');
+        // 1. Ambil filter, sort, dan per_page
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
+
         $assignments = Assignment::with(['prodi', 'period'])
-            ->where('auditor_id', auth()->id())
-            ->when($search, function ($q) use ($search) {
-                $q->whereHas('prodi', fn($p) => $p->where('name', 'like', "%{$search}%"));
-            })
-            ->latest()
-            ->paginate(10)
-            ->withQueryString(); // Tambahkan ini agar search tidak hilang saat pindah page
+            ->where('auditor_id', auth()->id()) // Proteksi: Hanya milik auditor login
+            ->search($request->search) // Gunakan scopeSearch yang sudah di-override di Model
+            ->sort($request->sort_field, $request->direction) // Trait Filterable
+            ->paginate($perPage)
+            ->withQueryString();
 
         return inertia('Auditor/Assignments/Index', [
             'assignments' => $assignments,
-            'filters' => $request->only(['search'])
+            'filters' => $filters
         ]);
     }
 
-    /**
-     * Menampilkan detail dengan data history header
-     */
     public function show(Request $request, Assignment $assignment)
     {
-        // Pastikan hanya auditor terkait yang bisa melihat
         Gate::authorize('view', $assignment);
 
-        $search = $request->input('search');
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
+
         $assignment->load(['period', 'standard', 'prodi', 'auditor', 'documents', 'histories.user']);
 
         $indicators = $assignment->indicators()
-            ->when($search, function ($q) use ($search) {
+            ->when($request->search, function ($q, $search) {
                 $q->where('snapshot_code', 'like', "%{$search}%")
                     ->orWhere('snapshot_requirement', 'like', "%{$search}%");
             })
-            ->get();
+            // Gunakan sort dari Trait
+            ->sort($request->sort_field ?? 'snapshot_code', $request->direction ?? 'asc')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return inertia('Auditor/Assignments/Show', [
             'assignment' => $assignment,
             'indicators' => $indicators,
-            'currentStage' => $assignment->current_stage,
-            'filters' => $request->only(['search'])
+            'filters' => $filters,
+            'currentStage' => $assignment->current_stage
         ]);
     }
 
@@ -101,21 +103,8 @@ class AssignmentController extends Controller
             'overall_rating' => 'required|integer|min:1|max:4',
         ]);
 
-        // Gunakan DB Transaction untuk keamanan data
-        \DB::transaction(function () use ($assignment, $validated) {
-            $assignment->update([
-                'summary_note' => $validated['summary_note'],
-                'overall_rating' => $validated['overall_rating'],
-                'completed_at' => now(),
-            ]);
-
-            $assignment->histories()->create([
-                'user_id' => auth()->id(),
-                'stage' => $assignment->current_stage,
-                'action' => 'finalize_audit',
-                'new_values' => $validated,
-            ]);
-        });
+        // Panggil service
+        $this->assignmentService->finalizeAssignment($assignment, $validated, auth()->id());
 
         Session::flash('toastr', ['type' => 'gradient-green-to-emerald', 'content' => 'Audit telah difinalisasi.']);
         return back();

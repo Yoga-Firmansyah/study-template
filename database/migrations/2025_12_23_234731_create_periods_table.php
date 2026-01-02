@@ -12,7 +12,7 @@ return new class extends Migration {
     {
         Schema::create('periods', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // Contoh: AMI 2026 Ganjil
+            $table->string('name')->index(); // Contoh: AMI 2026 Ganjil
 
             // 6 Tahapan dengan rentang waktu DateTime
             $table->dateTime('doc_audit_start');
@@ -26,7 +26,7 @@ return new class extends Migration {
             $table->dateTime('rtm_rtl_start');
             $table->dateTime('rtm_rtl_end');
 
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(true)->index();
             $table->timestamps();
         });
     }
