@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AuditStage;
 use App\Traits\Filterable;
 use App\Traits\HasAuditHistory;
 use Illuminate\Database\Eloquent\Model;
@@ -80,4 +81,19 @@ class Assignment extends Model
         return $query->where('prodi_id', $prodiId);
     }
 
+    public static function stageBreakdown()
+    {
+        $counts = self::query()
+            ->select('current_stage')
+            ->selectRaw('count(*) as total')
+            ->groupBy('current_stage')
+            ->pluck('total', 'current_stage');
+
+        return collect(AuditStage::cases())
+            ->map(fn(AuditStage $stage) => [
+                'stage' => $stage->value,
+                'label' => $stage->label(),
+                'total' => $counts[$stage->value] ?? 0,
+            ]);
+    }
 }

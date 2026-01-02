@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auditor;
 use App\Http\Controllers\Controller;
 use App\Models\AssignmentIndicator;
 use App\Services\AssignmentService;
+use DB;
+use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 
@@ -22,6 +24,7 @@ class AssignmentIndicatorController extends Controller
      */
     public function update(Request $request, AssignmentIndicator $indicator)
     {
+        Gate::authorize('updateScore', $indicator->assignment);
         $validated = $request->validate([
             'score' => 'nullable|integer|min:1|max:4',
             'auditor_note' => 'nullable|string',
@@ -36,7 +39,9 @@ class AssignmentIndicatorController extends Controller
         }
 
         // Service menangani pencatatan polimorfik secara otomatis
-        $this->service->updateIndicator($indicator, $validated, auth()->id());
+        DB::transaction(function () use ($indicator, $validated) {
+            $this->service->updateIndicator($indicator, $validated, auth()->id());
+        });
 
 
         Session::flash('toastr', [

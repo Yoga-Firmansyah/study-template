@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\{Assignment, AuditHistory, Prodi, Period, MasterStandard, User};
 use App\Services\AssignmentService;
+use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -67,7 +68,10 @@ class AssignmentController extends Controller
             'prodi_id.unique' => 'Program Studi ini sudah memiliki penugasan pada periode yang dipilih.'
         ]);
 
-        $assignment = $this->assignmentService->createAssignment($validated);
+
+        $assignment = DB::transaction(function () use ($validated) {
+            return $this->assignmentService->createAssignment($validated);
+        });
 
 
         Session::flash('toastr', [
@@ -127,12 +131,15 @@ class AssignmentController extends Controller
             return back()->withErrors(['message' => 'Laporan Akhir hanya dapat diunggah pada tahap Pelaporan atau RTM/RTL.']);
         }
 
-        $this->assignmentService->uploadAssignmentDocument(
-            $assignment,
-            $request->only('type'),
-            $request->file('file'),
-            auth()->id()
-        );
+
+        DB::transaction(function () use ($assignment, $request) {
+            $this->assignmentService->uploadAssignmentDocument(
+                $assignment,
+                $request->only('type'),
+                $request->file('file'),
+                auth()->id()
+            );
+        });
 
         Session::flash('toastr', [
             'type' => 'gradient-green-to-emerald',
@@ -171,38 +178,22 @@ class AssignmentController extends Controller
      */
     public function finalize(Request $request, Assignment $assignment)
     {
-        // Validasi input
-        $validated = $request->validate([
-            'summary_note' => 'required|string|min:10',
-            'overall_rating' => 'required|integer|min:1|max:4',
-        ]);
-
-        // Hanya auditor yang ditugaskan yang bisa melakukan finalisasi
-        if (auth()->id() !== $assignment->auditor_id && !auth()->user()->isAdmin()) {
-            return back()->withErrors(['message' => 'Anda tidak memiliki otoritas untuk memfinalisasi audit ini.']);
-        }
+        Gate::authorize('finalize', $assignment);
 
         // Pastikan audit belum selesai
         if ($assignment->completed_at) {
             return back()->withErrors(['message' => 'Audit ini sudah difinalisasi sebelumnya.']);
         }
 
-        // Update data dan set waktu selesai
-        $assignment->update([
-            'summary_note' => $validated['summary_note'],
-            'overall_rating' => $validated['overall_rating'],
-            'completed_at' => now(),
+        // Validasi input
+        $validated = $request->validate([
+            'summary_note' => 'required|string|min:10',
+            'overall_rating' => 'required|integer|min:1|max:4',
         ]);
 
-        // Catat ke History bahwa Audit telah diselesaikan
-        AuditHistory::create([
-            'user_id' => auth()->id(),
-            'historable_type' => Assignment::class,
-            'historable_id' => $assignment->id,
-            'stage' => $assignment->current_stage,
-            'action' => 'finalize_audit',
-            'new_values' => $assignment->only(['summary_note', 'overall_rating', 'completed_at']),
-        ]);
+        DB::transaction(function () use ($assignment, $validated) {
+            $this->assignmentService->finalizeAssignment($assignment, $validated, auth()->id());
+        });
 
         Session::flash('toastr', [
             'type' => 'gradient-green-to-emerald',

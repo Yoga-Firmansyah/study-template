@@ -32,9 +32,7 @@ class AssignmentController extends Controller
     public function show(Request $request, Assignment $assignment)
     {
         // Otorisasi: Pastikan auditee hanya bisa melihat assignment milik prodinya
-        if ($assignment->prodi_id !== auth()->user()->prodi_id) {
-            abort(403, 'Anda tidak memiliki akses ke data prodi lain.');
-        }
+        Gate::authorize('view', $assignment);
 
         $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
         $perPage = $request->input('per_page', 25);

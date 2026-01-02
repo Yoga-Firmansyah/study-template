@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\ProdiController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -225,3 +227,71 @@ Route::middleware([
     })->name('form-validation');
 });
 
+Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+
+    // Dashboard utama (Diarahkan secara dinamis oleh Controller)
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // ==========================================
+    // GROUP ADMIN (Manajemen Master & Sistem)
+    // ==========================================
+    Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
+        // Master Prodi
+        Route::resource('prodis', ProdiController::class)->except(['show', 'edit', 'create']);
+
+        // Master Periode AMI
+        Route::resource('periods', PeriodController::class);
+
+        // Master Standar & Indikator
+        Route::resource('standards', MasterStandardController::class);
+        Route::prefix('standards/{standard}')->name('standards.')->group(function () {
+            Route::resource('indicators', MasterIndicatorController::class);
+            Route::get('indicators/{indicator}/history', [MasterIndicatorController::class, 'history'])->name('indicators.history');
+        });
+
+        // Manajemen User
+        Route::resource('users', UserController::class);
+
+        // Log Riwayat Audit Global
+        Route::get('/audit-history', [AuditHistoryController::class, 'index'])->name('history.index');
+    });
+
+    // ==========================================
+    // GROUP AUDITOR (Penilaian & Validasi)
+    // ==========================================
+    Route::middleware(['role:auditor', 'sync.ami'])->prefix('auditor')->name('auditor.')->group(function () {
+        // Daftar Penugasan Auditor
+        Route::get('/assignments', [\App\Http\Controllers\Auditor\AssignmentController::class, 'index'])->name('assignments.index');
+        Route::get('/assignments/{assignment}', [\App\Http\Controllers\Auditor\AssignmentController::class, 'show'])->name('assignments.show');
+
+        // Penilaian Indikator
+        Route::patch('/indicators/{indicator}', [\App\Http\Controllers\Auditor\AssignmentIndicatorController::class, 'update'])->name('indicators.update');
+
+        // Unggah Dokumen Resmi (BA/Laporan Akhir)
+        Route::post('/assignments/{assignment}/upload-document', [\App\Http\Controllers\Auditor\AssignmentController::class, 'uploadDocument'])->name('assignments.upload-document');
+
+        // Finalisasi Audit
+        Route::post('/assignments/{assignment}/finalize', [\App\Http\Controllers\Auditor\AssignmentController::class, 'finalize'])->name('assignments.finalize');
+    });
+
+    // ==========================================
+    // GROUP AUDITEE (Pemenuhan Bukti Prodi)
+    // ==========================================
+    Route::middleware(['role:auditee', 'sync.ami'])->prefix('auditee')->name('auditee.')->group(function () {
+        // Daftar Audit Prodi
+        Route::get('/assignments', [\App\Http\Controllers\Auditee\AssignmentController::class, 'index'])->name('assignments.index');
+        Route::get('/assignments/{assignment}', [\App\Http\Controllers\Auditee\AssignmentController::class, 'show'])->name('assignments.show');
+
+        // Unggah Bukti Indikator
+        Route::patch('/indicators/{indicator}', [\App\Http\Controllers\Auditee\AssignmentIndicatorController::class, 'update'])->name('indicators.update');
+        Route::get('/indicators/{indicator}/history', [\App\Http\Controllers\Auditee\AssignmentIndicatorController::class, 'history'])->name('indicators.history');
+    });
+
+    // ==========================================
+    // SHARED ROUTES (Dokumen & File)
+    // ==========================================
+    // Download dokumen aman (Internal storage)
+    Route::get('/documents/{document}/download', [AssignmentDocumentController::class, 'download'])->name('documents.download');
+    // Hapus dokumen (Dicek oleh Policy & Stage-Gate)
+    Route::delete('/documents/{document}', [AssignmentDocumentController::class, 'destroy'])->name('documents.destroy');
+});

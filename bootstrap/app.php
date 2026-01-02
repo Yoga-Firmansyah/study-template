@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
         $middleware->alias([
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
             'sync.ami' => \App\Http\Middleware\SyncAmiStage::class,
         ]);
 

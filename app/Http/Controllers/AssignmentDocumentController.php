@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\AssignmentDocType;
 use App\Models\AssignmentDocument;
+use DB;
+use Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Session;
 
@@ -30,14 +32,18 @@ class AssignmentDocumentController extends Controller
      */
     public function destroy(AssignmentDocument $document)
     {
+        $assignment = $document->assignment;
+        Gate::authorize('deleteDocument', $assignment);
         if ($document->isLockedForReportChange()) {
             return back()->withErrors([
                 'message' => 'Dokumen sudah dikunci dan tidak dapat dihapus.',
             ]);
         }
 
-        Storage::delete($document->file_path);
-        $document->delete();
+        DB::transaction(function () use ($document) {
+            Storage::delete($document->file_path);
+            $document->delete();
+        });
 
         Session::flash('toastr', [
             'type' => 'gradient-red-to-pink',

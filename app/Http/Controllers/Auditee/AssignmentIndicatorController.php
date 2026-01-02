@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auditee;
 use App\Http\Controllers\Controller;
 use App\Models\AssignmentIndicator;
 use App\Services\AssignmentService;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -20,9 +21,7 @@ class AssignmentIndicatorController extends Controller
     public function update(Request $request, AssignmentIndicator $indicator)
     {
         // 1. Otorisasi: Pastikan indikator ini milik prodi user yang login
-        if ($indicator->assignment->prodi_id !== auth()->user()->prodi_id) {
-            abort(403);
-        }
+        Gate::authorize('updateEvidence', $indicator->assignment);
 
         // 2. Validasi: Auditee hanya boleh mengisi bukti, bukan skor/catatan
         $validated = $request->validate([
@@ -35,7 +34,10 @@ class AssignmentIndicatorController extends Controller
         }
 
         // 3. Simpan via Service (Otomatis mencatat riwayat perubahan polimorfik)
-        $this->service->updateIndicator($indicator, $validated, auth()->id());
+
+        DB::transaction(function () use ($indicator, $validated) {
+            $this->service->updateIndicator($indicator, $validated, auth()->id());
+        });
 
         return back()->with('success', 'Bukti berhasil diunggah dan tercatat di riwayat.');
     }
@@ -45,9 +47,7 @@ class AssignmentIndicatorController extends Controller
      */
     public function history(AssignmentIndicator $indicator)
     {
-        if ($indicator->assignment->prodi_id !== auth()->user()->prodi_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('auditeeAssignment', $indicator->assignment);
 
         $history = $indicator->histories()
             ->with('user:id,name,role')

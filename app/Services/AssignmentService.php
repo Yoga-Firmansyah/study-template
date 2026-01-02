@@ -105,7 +105,7 @@ class AssignmentService
         return $now->gt($period->rtm_rtl_end) ? AuditStage::FINISHED : AuditStage::DOC_AUDIT;
     }
 
-    private function recordHistory($model, $old, $new, $stage, $userId): AuditHistory
+    private function recordHistory($model, $old, $new, $stage, $userId, $action = 'update_audit_trail'): AuditHistory
     {
         return AuditHistory::create([
             'user_id' => $userId,
@@ -114,7 +114,7 @@ class AssignmentService
             'stage' => $stage,
             'old_values' => $old,
             'new_values' => $new,
-            'action' => 'update_audit_trail',
+            'action' => $action,
         ]);
     }
 
@@ -171,7 +171,7 @@ class AssignmentService
                 'current_stage' => 'finished' // Otomatis set ke selesai
             ]);
 
-            $this->recordHistory($assignment, [], $data, $assignment->current_stage, $userId);
+            $this->recordHistory($assignment, [], $data, $assignment->current_stage, $userId, 'finalize_assignment');
         });
     }
 }

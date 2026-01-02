@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\{Assignment, Period, Prodi, AuditHistory, User};
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,9 +15,9 @@ class DashboardController extends Controller
 
         // Mengembalikan data dan komponen Vue berdasarkan role
         return match ($user->role) {
-            'admin' => $this->adminDashboard(),
-            'auditor' => $this->auditorDashboard($user),
-            'auditee' => $this->auditeeDashboard($user),
+            UserRole::ADMIN => $this->adminDashboard(),
+            UserRole::AUDITOR => $this->auditorDashboard($user),
+            UserRole::AUDITEE => $this->auditeeDashboard($user),
             default => abort(403),
         };
     }
@@ -27,14 +28,10 @@ class DashboardController extends Controller
             'stats' => [
                 'total_prodi' => Prodi::count(),
                 'active_periods' => Period::where('is_active', true)->count(),
-                'total_auditors' => User::where('role', 'auditor')->count(),
+                'total_auditors' => User::where('role', UserRole::AUDITOR)->count(),
                 'total_assignments' => Assignment::count(),
             ],
-            // Progres AMI Nasional
-            'progress' => [
-                'finished' => Assignment::whereNotNull('completed_at')->count(),
-                'ongoing' => Assignment::whereNull('completed_at')->count(),
-            ]
+            'stage_breakdown' => Assignment::stageBreakdown(),
         ]);
     }
 
@@ -64,7 +61,7 @@ class DashboardController extends Controller
                 'latest_assignment' => Assignment::with('period')
                     ->where('prodi_id', $user->prodi_id)
                     ->latest()
-                    ->first()
+                    ->get()
             ],
             // Fokus pada pengisian bukti (evidence)
         ]);

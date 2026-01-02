@@ -6,6 +6,7 @@ use App\Enums\AssignmentDocType;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Services\AssignmentService; // Tambahkan ini
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Session, Gate};
 use Illuminate\Validation\Rule;
@@ -91,22 +92,24 @@ class AssignmentController extends Controller
         }
 
         if ($request->type === AssignmentDocType::END_REPORT->value && !$stage->endReport()) {
-            return back()->withErrors(['message' => 'Laporan Akhir hanya diunggah pada tahap RTM/RTL atau Selesai.']);
+            return back()->withErrors(['message' => 'Laporan Akhir hanya diunggah pada tahap Selesai.']);
         }
 
-        $this->assignmentService->uploadAssignmentDocument(
-            $assignment,
-            $request->only('type'),
-            $request->file('file'),
-            auth()->id()
-        );
+        DB::transaction(function () use ($assignment, $request) {
+            $this->assignmentService->uploadAssignmentDocument(
+                $assignment,
+                $request->only('type'),
+                $request->file('file'),
+                auth()->id()
+            );
+        });
 
         return back()->with('success', 'Dokumen resmi berhasil diunggah.');
     }
 
     public function finalize(Request $request, Assignment $assignment)
     {
-        Gate::authorize('update', $assignment);
+        Gate::authorize('finalize', $assignment);
 
         $validated = $request->validate([
             'summary_note' => 'required|string|min:10',
@@ -114,7 +117,10 @@ class AssignmentController extends Controller
         ]);
 
         // Panggil service
-        $this->assignmentService->finalizeAssignment($assignment, $validated, auth()->id());
+
+        DB::transaction(function () use ($assignment, $validated) {
+            $this->assignmentService->finalizeAssignment($assignment, $validated, auth()->id());
+        });
 
         Session::flash('toastr', ['type' => 'gradient-green-to-emerald', 'content' => 'Audit telah difinalisasi.']);
         return back();

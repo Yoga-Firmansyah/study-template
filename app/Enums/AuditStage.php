@@ -41,24 +41,17 @@ enum AuditStage: string
 
     public function fieldReport(): bool
     {
-        return in_array($this, [
-            self::FIELD_AUDIT,
-        ], true);
+        return $this === self::FIELD_AUDIT;
     }
 
     public function finalReport(): bool
     {
-        return in_array($this, [
-            self::REPORTING,
-        ], true);
+        return $this === self::REPORTING;
     }
 
     public function endReport(): bool
     {
-        return in_array($this, [
-            self::RTM_RTL,
-            self::FINISHED,
-        ], true);
+        return $this === self::FINISHED;
     }
 
     public function isEnd(): bool

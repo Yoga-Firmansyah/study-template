@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Prodi;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Hash, Session};
 use Illuminate\Validation\Rule;
@@ -43,7 +44,10 @@ class UserController extends Controller
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
-        User::create($validated);
+
+        DB::transaction(function () use ($validated) {
+            User::create($validated);
+        });
 
         Session::flash('toastr', ['type' => 'gradient-primary', 'content' => 'User baru berhasil dibuat']);
         return redirect()->back();
@@ -69,7 +73,9 @@ class UserController extends Controller
             unset($validated['password']);
         }
 
-        $user->update($validated);
+        DB::transaction(function () use ($user, $validated) {
+            $user->update($validated);
+        });
         Session::flash('toastr', ['type' => 'gradient-info', 'content' => 'Data user diperbarui']);
         return redirect()->back();
     }
@@ -81,8 +87,10 @@ class UserController extends Controller
             return redirect()->back();
         }
 
-        $user = User::findOrFail($id);
-        $user->delete(); // Soft Delete
+        DB::transaction(function () use ($id) {
+            $user = User::findOrFail($id);
+            $user->delete(); // Soft Delete
+        });
 
         Session::flash('toastr', ['type' => 'gradient-red-to-pink', 'content' => 'User telah dipindahkan ke sampah']);
         return redirect()->back();
