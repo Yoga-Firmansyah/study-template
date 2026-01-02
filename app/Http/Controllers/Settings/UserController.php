@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Models\Prodi;
 use DB;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{Hash, Session};
+use Illuminate\Support\Facades\{Gate, Hash, Session};
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -94,5 +94,38 @@ class UserController extends Controller
 
         Session::flash('toastr', ['type' => 'gradient-red-to-pink', 'content' => 'User telah dipindahkan ke sampah']);
         return redirect()->back();
+    }
+
+    public function resetTwoFactor(User $user)
+    {
+        // Proteksi: Admin tidak boleh mereset 2FA-nya sendiri lewat sini (keamanan platform)
+        Gate::authorize('resetTwoFactor', $user);
+
+        DB::transaction(function () use ($user) {
+            // 1. Kosongkan kolom terkait 2FA di database
+            $user->forceFill([
+                'two_factor_secret' => null,
+                'two_factor_recovery_codes' => null,
+                'two_factor_confirmed_at' => null, // Jika menggunakan Laravel Fortify terbaru
+            ])->save();
+
+            // 2. Catat aktivitas ini ke Audit History untuk akuntabilitas
+            \App\Models\AuditHistory::create([
+                'user_id' => auth()->id(),
+                'historable_type' => User::class,
+                'historable_id' => $user->id,
+                'stage' => 'master_setup',
+                'action' => 'reset_user_2fa',
+                'reason' => 'User kehilangan akses authenticator dan recovery codes.',
+                'new_values' => ['2fa_status' => 'disabled']
+            ]);
+        });
+
+        Session::flash('toastr', [
+            'type' => 'gradient-primary',
+            'content' => '2FA untuk user ' . $user->name . ' telah dinonaktifkan.'
+        ]);
+
+        return back();
     }
 }
