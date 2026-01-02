@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\{AuditHistory, Prodi};
+use App\Models\{Assignment, AuditHistory, Prodi};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, Session};
 use Illuminate\Validation\Rule;
@@ -13,21 +13,17 @@ class ProdiController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'sort_field', 'direction']);
-        $sortField = $request->input('sort_field', 'name'); // Default urut nama
-        $sortDirection = $request->input('direction', 'asc');
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
 
-        $prodis = Prodi::when($request->input('search'), function ($q, $search) {
-            $q->where('name', 'like', "%{$search}%")
-                ->orWhere('code', 'like', "%{$search}%");
-        })
-            ->orderBy($sortField, $sortDirection)
-            ->paginate(10) // Disarankan menggunakan paginate agar konsisten dengan tabel lain
+        $prodis = Prodi::search($request->search, ['name', 'code']) // Cari di kolom name & code
+            ->sort($request->sort_field, $request->direction)    // Urutkan ASC/DESC
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('Master/Prodi/Index', [
             'prodis' => $prodis,
-            'filters' => $filters
+            'filters' => $filters,
         ]);
     }
 
@@ -80,6 +76,13 @@ class ProdiController extends Controller
 
     public function destroy(Prodi $prodi)
     {
+        if ($prodi->users()->exists() || Assignment::where('prodi_id', $prodi->id)->exists()) {
+            return back()->with('toastr', [
+                'type' => 'gradient-red-to-pink',
+                'content' => 'Gagal: Prodi ini masih memiliki user atau penugasan audit.'
+            ]);
+        }
+
         DB::transaction(function () use ($prodi) {
             AuditHistory::create([
                 'user_id' => auth()->id(),

@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\{Assignment, MasterIndicator, AssignmentIndicator, AuditHistory};
+use App\Models\{Assignment, AssignmentDocument, MasterIndicator, AssignmentIndicator, AuditHistory};
 use Carbon\Carbon;
 use Illuminate\Support\Facades\{DB, Storage};
 
@@ -19,11 +19,20 @@ class AssignmentService
             $masterIndicators = MasterIndicator::where('master_standard_id', $data['master_standard_id'])->get();
 
             foreach ($masterIndicators as $master) {
+                $snapshotPath = $master->template_path;
+
+                // Jika ada template, lakukan COPY fisik agar tidak hilang
+                if ($master->template_path && Storage::exists($master->template_path)) {
+                    $newPath = 'assignments/' . $assignment->id . '/templates/' . basename($master->template_path);
+                    Storage::copy($master->template_path, $newPath);
+                    $snapshotPath = $newPath;
+                }
+
                 AssignmentIndicator::create([
                     'assignment_id' => $assignment->id,
                     'snapshot_code' => $master->code,
                     'snapshot_requirement' => $master->requirement,
-                    'snapshot_template_path' => $master->template_path,
+                    'snapshot_template_path' => $snapshotPath,
                 ]);
             }
 
@@ -138,5 +147,16 @@ class AssignmentService
 
             return $document;
         });
+    }
+
+    /**
+     * Hapus folder fisik terkait assignment
+     */
+    public function deleteAssignmentFiles(Assignment $assignment): void
+    {
+        $path = "assignments/{$assignment->id}";
+        if (Storage::exists($path)) {
+            Storage::deleteDirectory($path); // Menghapus semua template & dokumen terkait
+        }
     }
 }

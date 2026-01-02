@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\HasAuditHistory;
 use Illuminate\Database\Eloquent\Model;
 
 class AssignmentDocument extends Model
 {
+    use HasAuditHistory;
     protected $fillable = ['assignment_id', 'type', 'file_path', 'uploaded_by'];
 
     public function assignment()

@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\AssignmentController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -226,18 +225,3 @@ Route::middleware([
     })->name('form-validation');
 });
 
-
-//Aplikasi AMI
-Route::middleware(['auth', 'sync.ami'])->group(function () {
-    // Tampilan Detail Audit
-    Route::get('/assignments/{assignment}', [AssignmentController::class, 'show'])->name('assignments.show');
-
-    // Update Indikator (Skor & Bukti)
-    Route::post('/indicators/{indicator}', [AssignmentController::class, 'updateIndicator'])->name('indicators.update');
-
-    // Upload Dokumen Berita Acara
-    Route::post('/assignments/{assignment}/documents', [AssignmentController::class, 'uploadDocument'])->name('assignments.documents.upload');
-});
-
-// Rute khusus Admin untuk membuat penugasan
-Route::middleware(['auth', 'can:admin'])->post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');

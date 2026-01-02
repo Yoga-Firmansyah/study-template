@@ -12,15 +12,12 @@ class PeriodController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'sort_field', 'direction']);
-        $sortField = $request->input('sort_field', 'doc_audit_start');
-        $sortDirection = $request->input('direction', 'desc');
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
 
-        $periods = Period::when($request->input('search'), function ($q, $search) {
-            $q->where('name', 'like', "%{$search}%");
-        })
-            ->orderBy($sortField, $sortDirection)
-            ->paginate(10)
+        $periods = Period::search($request->search, ['name'])
+            ->sort($request->sort_field ?? 'doc_audit_start', $request->direction ?? 'desc')
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('Master/Periods/Index', [
@@ -68,8 +65,17 @@ class PeriodController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'is_active' => 'required|boolean',
-            // ... (validasi tanggal sama seperti store)
+            'doc_audit_start' => 'required|date',
+            'doc_audit_end' => 'required|date|after:doc_audit_start',
+            'field_audit_start' => 'required|date|after:doc_audit_end',
+            'field_audit_end' => 'required|date|after:field_audit_start',
+            'finding_start' => 'required|date|after:field_audit_end',
+            'finding_end' => 'required|date|after:finding_start',
+            'reporting_start' => 'required|date|after:finding_end',
+            'reporting_end' => 'required|date|after:reporting_start',
+            'rtm_rtl_start' => 'required|date|after:reporting_end',
+            'rtm_rtl_end' => 'required|date|after:rtm_rtl_start',
+            'is_active' => 'required|boolean'
         ]);
 
         $oldValues = $period->toArray();

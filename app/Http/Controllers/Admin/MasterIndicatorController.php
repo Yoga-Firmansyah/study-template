@@ -13,17 +13,14 @@ class MasterIndicatorController extends Controller
 {
     public function index(Request $request, MasterStandard $standard)
     {
-        $filters = $request->only(['search', 'sort_field', 'direction']);
-        $sortField = $request->input('sort_field', 'code');
-        $sortDirection = $request->input('direction', 'asc');
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
 
         $indicators = $standard->indicators()
-            ->when($request->input('search'), function ($q, $search) {
-                $q->where('requirement', 'like', "%{$search}%")
-                    ->orWhere('code', 'like', "%{$search}%");
-            })
-            ->orderBy($sortField, $sortDirection)
-            ->get(); // Biasanya indikator per standar tidak terlalu banyak, bisa tetap get()
+            ->search($request->search, ['requirement', 'code'])
+            ->sort($request->sort_field ?? 'code', $request->direction ?? 'asc')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return Inertia::render('Master/Indicators/Index', [
             'standard' => $standard,
@@ -50,7 +47,19 @@ class MasterIndicatorController extends Controller
             $validated['template_path'] = $request->file('template')->store('templates');
         }
 
-        $standard->indicators()->create($validated);
+        DB::transaction(function () use ($request, $standard, $validated) {
+            $indicator = $standard->indicators()->create($validated);
+
+            // Catat History Create
+            AuditHistory::create([
+                'user_id' => auth()->id(),
+                'historable_type' => MasterIndicator::class,
+                'historable_id' => $indicator->id,
+                'stage' => 'master_setup',
+                'action' => 'create_master_indicator',
+                'new_values' => $indicator->toArray(),
+            ]);
+        });
 
         Session::flash('toastr', ['type' => 'gradient-primary', 'content' => 'Indikator berhasil ditambahkan.']);
         return back();
@@ -109,7 +118,19 @@ class MasterIndicatorController extends Controller
 
     public function destroy(MasterIndicator $indicator)
     {
-        $indicator->delete();
+        DB::transaction(function () use ($indicator) {
+            // Catat History sebelum hapus
+            AuditHistory::create([
+                'user_id' => auth()->id(),
+                'historable_type' => MasterIndicator::class,
+                'historable_id' => $indicator->id,
+                'stage' => 'master_setup',
+                'action' => 'delete_master_indicator',
+                'old_values' => $indicator->toArray(),
+            ]);
+            $indicator->delete();
+        });
+
         Session::flash('toastr', ['type' => 'gradient-red-to-pink', 'content' => 'Indikator berhasil dihapus.']);
         return back();
     }

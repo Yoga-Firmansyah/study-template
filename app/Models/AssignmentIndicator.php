@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Filterable;
+use App\Traits\HasAuditHistory;
 use Illuminate\Database\Eloquent\Model;
 
 class AssignmentIndicator extends Model
 {
+    use Filterable, HasAuditHistory;
     protected $fillable = [
         'assignment_id',
 
@@ -24,9 +27,4 @@ class AssignmentIndicator extends Model
         return $this->belongsTo(Assignment::class);
     }
 
-    // Relasi Polimorfik ke History
-    public function histories()
-    {
-        return $this->morphMany(AuditHistory::class, 'historable');
-    }
 }

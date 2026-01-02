@@ -2,56 +2,71 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Assignment, Period, Prodi, AuditHistory};
+use App\Models\{Assignment, Period, Prodi, AuditHistory, User};
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    /**
-     * Menampilkan Ringkasan Eksekutif AMI
-     */
     public function index()
     {
         $user = auth()->user();
-        $query = Assignment::query();
 
-        // 1. Filter Data Berdasarkan Role
-        if ($user->role === 'auditor') {
-            $query->where('auditor_id', $user->id);
-        } elseif ($user->role === 'auditee') {
-            $query->where('prodi_id', $user->prodi_id);
-        }
+        // Mengembalikan data dan komponen Vue berdasarkan role
+        return match ($user->role) {
+            'admin' => $this->adminDashboard(),
+            'auditor' => $this->auditorDashboard($user),
+            'auditee' => $this->auditeeDashboard($user),
+            default => abort(403),
+        };
+    }
 
-        // 2. Statistik Utama
-        $stats = [
-            'total_assignments' => (clone $query)->count(),
-            'completed' => (clone $query)->whereNotNull('completed_at')->count(),
-            'on_progress' => (clone $query)->whereNull('completed_at')->count(),
-            'total_prodi' => Prodi::count(),
-        ];
+    private function adminDashboard()
+    {
+        return Inertia::render('Admin/Dashboard', [
+            'stats' => [
+                'total_prodi' => Prodi::count(),
+                'active_periods' => Period::where('is_active', true)->count(),
+                'total_auditors' => User::where('role', 'auditor')->count(),
+                'total_assignments' => Assignment::count(),
+            ],
+            // Progres AMI Nasional
+            'progress' => [
+                'finished' => Assignment::whereNotNull('completed_at')->count(),
+                'ongoing' => Assignment::whereNull('completed_at')->count(),
+            ]
+        ]);
+    }
 
-        // 3. Progres per Tahap (Stage Distribution)
-        $stageDistribution = (clone $query)
-            ->selectRaw('current_stage, count(*) as count')
-            ->groupBy('current_stage')
-            ->get();
+    private function auditorDashboard($user)
+    {
+        return Inertia::render('Auditor/Dashboard', [
+            'stats' => [
+                'my_assignments' => Assignment::where('auditor_id', $user->id)->count(),
+                'pending_reviews' => Assignment::where('auditor_id', $user->id)->whereNull('completed_at')->count(),
+                'completed_reviews' => Assignment::where('auditor_id', $user->id)->whereNotNull('completed_at')->count(),
+            ],
+            // Daftar tugas terbaru milik auditor tersebut
+            'recent_tasks' => Assignment::with('prodi', 'period')
+                ->where('auditor_id', $user->id)
+                ->latest()
+                ->take(5)
+                ->get()
+        ]);
+    }
 
-        // 4. Jadwal Aktif Saat Ini
-        $activePeriod = Period::where('is_active', true)->first();
-
-        // 5. Aktivitas Terbaru (Recent Logs)
-        $recentActivities = AuditHistory::with(['user', 'historable'])
-            ->latest()
-            ->take(5)
-            ->get();
-
-        return Inertia::render('Dashboard', [
-            'stats' => $stats,
-            'stageDistribution' => $stageDistribution,
-            'activePeriod' => $activePeriod,
-            'recentActivities' => $recentActivities,
-            'userRole' => $user->role
+    private function auditeeDashboard($user)
+    {
+        return Inertia::render('Auditee/Dashboard', [
+            'prodi' => $user->prodi?->name,
+            'stats' => [
+                'total_audit' => Assignment::where('prodi_id', $user->prodi_id)->count(),
+                'latest_assignment' => Assignment::with('period')
+                    ->where('prodi_id', $user->prodi_id)
+                    ->latest()
+                    ->first()
+            ],
+            // Fokus pada pengisian bukti (evidence)
         ]);
     }
 }

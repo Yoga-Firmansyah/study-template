@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Filterable;
+use App\Traits\HasAuditHistory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Assignment extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, Filterable, HasAuditHistory;
     protected $fillable = [
         'period_id',
         'master_standard_id',
@@ -53,8 +55,20 @@ class Assignment extends Model
         return $this->hasMany(AssignmentDocument::class);
     }
 
-    public function histories()
+    /**
+     * Override scopeSearch dari Filterable Trait khusus untuk relasi
+     */
+    public function scopeSearch($query, $search, $columns = [])
     {
-        return $this->morphMany(AuditHistory::class, 'historable');
+        if (!$search)
+            return $query;
+
+        return $query->where(function ($q) use ($search) {
+            $q->whereHas('prodi', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                ->orWhereHas('auditor', fn($a) => $a->where('name', 'like', "%{$search}%"))
+                ->orWhereHas('period', fn($per) => $per->where('name', 'like', "%{$search}%"))
+                ->orWhere('current_stage', 'like', "%{$search}%");
+        });
     }
+
 }

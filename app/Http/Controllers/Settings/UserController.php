@@ -14,14 +14,12 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->only(['searchObj', 'sort_field', 'direction']);
-        $sortField = $request->input('sort_field', 'name');
-        $sortDirection = $request->input('direction', 'asc');
+        $filters = $request->only(['search', 'sort_field', 'direction']);
 
         return Inertia::render('Settings/User', [
             'users' => User::with('prodi')
-                ->tableSearch($request->input('searchObj')) // Menggunakan scope dari model
-                ->orderBy($sortField, $sortDirection)
+                ->search($request->input('search'), ['name', 'email'])
+                ->sort($request->sort_field, $request->direction)
                 ->paginate(10)
                 ->withQueryString(),
             'prodis' => Prodi::all(['id', 'name']),

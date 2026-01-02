@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\{Assignment, AuditHistory, Prodi, Period, MasterStandard, User};
 use App\Services\AssignmentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class AssignmentController extends Controller
@@ -24,25 +26,18 @@ class AssignmentController extends Controller
     public function index(Request $request)
     {
         // 1. Ambil input filter & sort
-        $filters = $request->only(['search', 'sort_field', 'direction']);
-        $sortField = $request->input('sort_field', 'created_at');
-        $sortDirection = $request->input('direction', 'desc');
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
 
         $assignments = Assignment::with(['prodi', 'period', 'standard', 'auditor'])
-            // 2. Logika Search Global
-            ->when($request->input('search'), function ($q, $search) {
-                $q->whereHas('prodi', fn($p) => $p->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('auditor', fn($a) => $a->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('period', fn($per) => $per->where('name', 'like', "%{$search}%"));
-            })
-            // 3. Logika Sorting
-            ->orderBy($sortField, $sortDirection)
-            ->paginate(10)
-            ->withQueryString(); // Mempertahankan parameter di URL
+            ->search($request->search) // Memanggil scope kustom di model
+            ->sort($request->sort_field, $request->direction) // Memanggil scope dari trait
+            ->paginate($perPage)
+            ->withQueryString();
 
         return Inertia::render('Assignments/Index', [
             'assignments' => $assignments,
-            'filters' => $filters, // Mengirim balik ke UI untuk state input
+            'filters' => $filters,
             'prodis' => Prodi::all(['id', 'name']),
             'periods' => Period::where('is_active', true)->get(['id', 'name']),
             'standards' => MasterStandard::all(['id', 'name']),
@@ -58,8 +53,18 @@ class AssignmentController extends Controller
         $validated = $request->validate([
             'period_id' => 'required|exists:periods,id',
             'master_standard_id' => 'required|exists:master_standards,id',
-            'prodi_id' => 'required|exists:prodis,id',
+            'prodi_id' => [
+                'required',
+                'exists:prodis,id',
+                // Pastikan prodi belum punya tugas di periode ini
+                Rule::unique('assignments')->where(
+                    fn($q) =>
+                    $q->where('period_id', $request->period_id)
+                )
+            ],
             'auditor_id' => 'required|exists:users,id',
+        ], [
+            'prodi_id.unique' => 'Program Studi ini sudah memiliki penugasan pada periode yang dipilih.'
         ]);
 
         $assignment = $this->assignmentService->createAssignment($validated);
@@ -69,7 +74,7 @@ class AssignmentController extends Controller
             'type' => 'gradient-green-to-emerald',
             'content' => 'Penugasan AMI berhasil dibuat.'
         ]);
-        return redirect()->route('assignments.show', $assignment->id);
+        return redirect()->route('admin.assignments.show', $assignment->id);
     }
 
     /**
@@ -77,23 +82,23 @@ class AssignmentController extends Controller
      */
     public function show(Request $request, Assignment $assignment)
     {
-        $search = $request->input('search');
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
 
         $assignment->load(['period', 'standard', 'prodi', 'auditor', 'documents', 'histories.user']);
 
         // Memuat indikator dengan filter search jika ada
         $indicators = $assignment->indicators()
-            ->when($search, function ($q) use ($search) {
-                $q->where('snapshot_code', 'like', "%{$search}%")
-                    ->orWhere('snapshot_requirement', 'like', "%{$search}%");
-            })
-            ->get();
+            ->search($filters['search'] ?? null)
+            ->sort($filters['sort_field'] ?? 'id', $filters['direction'] ?? 'asc')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return Inertia::render('Assignments/Show', [
             'assignment' => $assignment,
             'indicators' => $indicators, // Mengirim indikator yang sudah difilter
             'currentStage' => $assignment->current_stage,
-            'filters' => $request->only(['search'])
+            'filters' => $filters
         ]);
     }
 
@@ -141,12 +146,24 @@ class AssignmentController extends Controller
      */
     public function destroy(Assignment $assignment)
     {
-        $assignment->delete();
+        DB::transaction(function () use ($assignment) {
+            AuditHistory::create([
+                'user_id' => auth()->id(),
+                'historable_type' => Assignment::class,
+                'historable_id' => $assignment->id,
+                'stage' => $assignment->current_stage,
+                'action' => 'delete_assignment',
+                'old_values' => $assignment->toArray(),
+            ]);
+            $this->assignmentService->deleteAssignmentFiles($assignment);
+            $assignment->delete();
+        });
+
         Session::flash('toastr', [
             'type' => 'gradient-green-to-emerald',
             'content' => 'Penugasan berhasil dihapus.'
         ]);
-        return redirect()->route('assignments.index');
+        return redirect()->route('admin.assignments.index'); // Sesuaikan name route admin
     }
 
     /**

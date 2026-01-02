@@ -13,17 +13,13 @@ class MasterStandardController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->only(['search', 'sort_field', 'direction']);
-        $sortField = $request->input('sort_field', 'code');
-        $sortDirection = $request->input('direction', 'asc');
+        $filters = $request->only(['search', 'sort_field', 'direction', 'per_page']);
+        $perPage = $request->input('per_page', 10);
 
         $standards = MasterStandard::withCount('indicators')
-            ->when($request->input('search'), function ($q, $search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('code', 'like', "%{$search}%");
-            })
-            ->orderBy($sortField, $sortDirection)
-            ->paginate(10)
+            ->search($request->search, ['name', 'code'])
+            ->sort($request->sort_field ?? 'code', $request->direction ?? 'asc')
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('Master/Standards/Index', [

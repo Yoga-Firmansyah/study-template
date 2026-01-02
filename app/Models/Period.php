@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
+use App\Traits\Filterable;
+use App\Traits\HasAuditHistory;
 
 class Period extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, Filterable, HasAuditHistory;
 
     protected $fillable = [
         'name',

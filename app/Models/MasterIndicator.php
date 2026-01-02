@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\Filterable;
+use App\Traits\HasAuditHistory;
 
 class MasterIndicator extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, Filterable, HasAuditHistory;
     protected $fillable = [
         'master_standard_id',
         'code',
@@ -21,9 +23,4 @@ class MasterIndicator extends Model
         return $this->belongsTo(MasterStandard::class, 'master_standard_id');
     }
 
-    // Relasi Polimorfik ke History
-    public function histories()
-    {
-        return $this->morphMany(AuditHistory::class, 'historable');
-    }
 }
